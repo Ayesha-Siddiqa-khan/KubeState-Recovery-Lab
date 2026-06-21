@@ -126,6 +126,73 @@ jobs:
       - name: Install EBS CSI driver
         run: |
           set -euo pipefail
+
+          dump_ebs_csi_diagnostics() {
+            echo "::group::EBS CSI diagnostics"
+            kubectl get nodes -o wide || true
+            kubectl -n kube-system get deploy,daemonset,pods -o wide | grep -Ei 'ebs|csi' || true
+            kubectl -n kube-system describe deployment ebs-csi-controller || true
+            kubectl -n kube-system describe daemonset ebs-csi-node || true
+            for pod in $(kubectl -n kube-system get pods -o name | grep -E 'ebs-csi|csi' || true); do
+              kubectl -n kube-system describe "$pod" || true
+              kubectl -n kube-system logs "$pod" --all-containers --tail=120 || true
+            done
+            kubectl -n kube-system get events --sort-by=.metadata.creationTimestamp | tail -n 80 || true
+            echo "::endgroup::"
+          }
+
+          write_ebs_csi_values() {
+            cat > /tmp/aws-ebs-csi-values.yaml <<'EOF'
+          controller:
+            serviceAccount:
+              create: true
+              name: ebs-csi-controller-sa
+            tolerations:
+              - key: CriticalAddonsOnly
+                operator: Exists
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+                effect: NoSchedule
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+                effect: NoSchedule
+              - effect: NoExecute
+                operator: Exists
+                tolerationSeconds: 300
+          node:
+            tolerateAllTaints: true
+          EOF
+          }
+
+          patch_ebs_csi_tolerations() {
+            echo "Ensuring EBS CSI can run on a single-node/control-plane lab cluster..."
+            kubectl -n kube-system patch deployment ebs-csi-controller --type='merge' -p '{
+              "spec": {
+                "template": {
+                  "spec": {
+                    "tolerations": [
+                      {"key": "CriticalAddonsOnly", "operator": "Exists"},
+                      {"key": "node-role.kubernetes.io/control-plane", "operator": "Exists", "effect": "NoSchedule"},
+                      {"key": "node-role.kubernetes.io/master", "operator": "Exists", "effect": "NoSchedule"},
+                      {"effect": "NoExecute", "operator": "Exists", "tolerationSeconds": 300}
+                    ]
+                  }
+                }
+              }
+            }'
+            kubectl -n kube-system patch daemonset ebs-csi-node --type='merge' -p '{
+              "spec": {
+                "template": {
+                  "spec": {
+                    "tolerations": [
+                      {"operator": "Exists"}
+                    ]
+                  }
+                }
+              }
+            }' || true
+          }
+
           echo "Checking if EBS CSI driver is already installed..."
           if kubectl get deployment ebs-csi-controller -n kube-system >/dev/null 2>&1; then
             echo "EBS CSI controller deployment already exists; skipping install."
@@ -134,15 +201,32 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
             helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
             helm repo update
-            helm upgrade --install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver \
+            write_ebs_csi_values
+            if ! helm upgrade --install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver \
               --namespace kube-system \
               --version 2.27.0 \
-              --set controller.serviceAccount.create=true \
-              --set controller.serviceAccount.name=ebs-csi-controller-sa \
-              --wait --timeout 5m
+              --values /tmp/aws-ebs-csi-values.yaml \
+              --wait --timeout 5m; then
+              dump_ebs_csi_diagnostics
+              exit 1
+            fi
           fi
+          patch_ebs_csi_tolerations
           echo "Waiting for EBS CSI controller to be ready..."
-          kubectl -n kube-system rollout status deployment/ebs-csi-controller --timeout=180s
+          if ! kubectl -n kube-system rollout status deployment/ebs-csi-controller --timeout=180s; then
+            dump_ebs_csi_diagnostics
+            exit 1
+          fi
+          if ! kubectl -n kube-system get daemonset ebs-csi-node >/dev/null 2>&1; then
+            echo "EBS CSI node DaemonSet is missing."
+            dump_ebs_csi_diagnostics
+            exit 1
+          fi
+          echo "Waiting for EBS CSI node DaemonSet to be ready..."
+          if ! kubectl -n kube-system rollout status daemonset/ebs-csi-node --timeout=180s; then
+            dump_ebs_csi_diagnostics
+            exit 1
+          fi
 
       - name: Apply storage class
         run: |
