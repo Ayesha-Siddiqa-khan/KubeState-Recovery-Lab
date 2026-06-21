@@ -123,6 +123,14 @@ jobs:
           kubectl cluster-info
           kubectl get nodes -o wide
 
+      - name: Install EBS CSI driver
+        run: |
+          set -euo pipefail
+          echo "Installing AWS EBS CSI driver..."
+          kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.62"
+          echo "Waiting for EBS CSI controller to be ready..."
+          kubectl -n kube-system rollout status deployment/ebs-csi-controller --timeout=180s
+
       - name: Apply storage class
         run: |
           set -euo pipefail
