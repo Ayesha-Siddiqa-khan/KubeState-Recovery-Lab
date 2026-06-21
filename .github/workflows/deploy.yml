@@ -1,0 +1,183 @@
+name: Deploy FastAPI to Kubernetes
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "app/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "k8s/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: kubestate-deploy-main
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: kubestate-recovery-lab-api
+  K8S_NAMESPACE: stateful-app
+  K8S_DEPLOYMENT: fastapi
+  K8S_CONTAINER: fastapi
+  PROJECT_NAME: KubeState Recovery Lab API
+  ENVIRONMENT: dev
+  POSTGRES_DB: kubestate
+  POSTGRES_USER: kubestate
+  BACKUP_PREFIX: postgres-backups
+
+jobs:
+  deploy:
+    name: Build, push, and roll out
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: kubestate-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker build -t "$IMAGE_URI" -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" .
+          docker push "$IMAGE_URI"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Decode kubeconfig
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Temporarily allow this runner to reach Kubernetes API
+        id: api_access
+        run: |
+          set -euo pipefail
+          RUNNER_IP="$(curl -fsS https://checkip.amazonaws.com | tr -d '\n')"
+          RUNNER_CIDR="$RUNNER_IP/32"
+          PROJECT_SLUG="$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          ENVIRONMENT_SLUG="$(echo "$ENVIRONMENT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          if [ "$PROJECT_SLUG" = "$ENVIRONMENT_SLUG" ] || [[ "$PROJECT_SLUG" == *-"$ENVIRONMENT_SLUG" ]]; then
+            RESOURCE_PREFIX="$PROJECT_SLUG"
+          else
+            RESOURCE_PREFIX="$PROJECT_SLUG-$ENVIRONMENT_SLUG"
+          fi
+          SG_NAME="${RESOURCE_PREFIX}-ec2-sg"
+          SG_ID="$(aws ec2 describe-security-groups \
+            --filters "Name=tag:Name,Values=$SG_NAME" "Name=tag:ManagedBy,Values=TerraPilot" \
+            --query 'SecurityGroups[0].GroupId' \
+            --output text)"
+
+          if [ -z "$SG_ID" ] || [ "$SG_ID" = "None" ]; then
+            echo "No TerraPilot EC2 security group found for $SG_NAME; skipping temporary API ingress."
+            echo "security_group_id=" >> "$GITHUB_OUTPUT"
+            echo "runner_cidr=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          EXISTING_RULE_COUNT="$(aws ec2 describe-security-groups \
+            --group-ids "$SG_ID" \
+            --query "length(SecurityGroups[0].IpPermissions[?IpProtocol=='tcp' && FromPort==\`6443\` && ToPort==\`6443\`].IpRanges[?CidrIp=='$RUNNER_CIDR'][])" \
+            --output text)"
+
+          if [ "$EXISTING_RULE_COUNT" = "0" ]; then
+            aws ec2 authorize-security-group-ingress \
+              --group-id "$SG_ID" \
+              --ip-permissions "IpProtocol=tcp,FromPort=6443,ToPort=6443,IpRanges=[{CidrIp=$RUNNER_CIDR,Description=github-actions-${GITHUB_RUN_ID}}]"
+            echo "revoke_api_access=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Temporary API ingress already exists for $RUNNER_CIDR; leaving it untouched after deploy."
+            echo "revoke_api_access=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "security_group_id=$SG_ID" >> "$GITHUB_OUTPUT"
+          echo "runner_cidr=$RUNNER_CIDR" >> "$GITHUB_OUTPUT"
+
+      - name: Verify cluster connection
+        run: |
+          set -euo pipefail
+          kubectl cluster-info
+          kubectl get nodes -o wide
+
+      - name: Apply storage class
+        run: |
+          set -euo pipefail
+          kubectl apply -f k8s/storage/gp3-storageclass.yaml
+
+      - name: Create runtime secrets
+        run: |
+          set -euo pipefail
+          kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl -n "$K8S_NAMESPACE" create secret generic postgres-secret \
+            --from-literal=POSTGRES_DB="$POSTGRES_DB" \
+            --from-literal=POSTGRES_USER="$POSTGRES_USER" \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl -n "$K8S_NAMESPACE" create secret generic fastapi-secret \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create backup config from Terraform metadata
+        run: |
+          set -euo pipefail
+          ENVIRONMENT_SLUG="$(echo "$ENVIRONMENT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          BACKUP_BUCKET_PARAMETER="/kubestate-recovery-lab/$ENVIRONMENT_SLUG/postgres-backup-bucket"
+          BACKUP_BUCKET="$(aws ssm get-parameter \
+            --name "$BACKUP_BUCKET_PARAMETER" \
+            --query 'Parameter.Value' \
+            --output text)"
+
+          kubectl -n "$K8S_NAMESPACE" create configmap postgres-backup-config \
+            --from-literal=S3_BACKUP_BUCKET="$BACKUP_BUCKET" \
+            --from-literal=S3_BACKUP_PREFIX="$BACKUP_PREFIX" \
+            --from-literal=AWS_REGION="$AWS_REGION" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply Kubernetes manifests
+        run: |
+          set -euo pipefail
+          kubectl apply -k k8s/stateful-app
+          kubectl -n "$K8S_NAMESPACE" set image "deployment/$K8S_DEPLOYMENT" "$K8S_CONTAINER=$IMAGE_URI"
+          kubectl -n "$K8S_NAMESPACE" rollout status "deployment/$K8S_DEPLOYMENT" --timeout=180s
+
+      - name: Show rollout state
+        if: always()
+        run: |
+          kubectl -n "$K8S_NAMESPACE" get deploy,sts,svc,ingress,pods -o wide || true
+          kubectl -n "$K8S_NAMESPACE" get events --sort-by=.metadata.creationTimestamp | tail -n 40 || true
+
+      - name: Revoke temporary Kubernetes API access
+        if: always() && steps.api_access.outputs.security_group_id != '' && steps.api_access.outputs.revoke_api_access == 'true'
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id "${{ steps.api_access.outputs.security_group_id }}" \
+            --protocol tcp \
+            --port 6443 \
+            --cidr "${{ steps.api_access.outputs.runner_cidr }}" \
+            || true

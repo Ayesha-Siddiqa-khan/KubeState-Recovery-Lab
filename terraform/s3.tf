@@ -1,17 +1,17 @@
 
 # S3 Bucket
 resource "aws_s3_bucket" "main" {
-  bucket = "kubestate-recovery-lab-fastapi"
+  bucket        = "kubestate-recovery-lab-fastapi"
   force_destroy = false
 
   tags = {
-    Name                  = "${var.project_name}-bucket"
-    Project               = var.project_name
-    TerraPilotProject     = var.project_name
+    Name                   = "${var.project_name}-bucket"
+    Project                = var.project_name
+    TerraPilotProject      = var.project_name
     TerraPilotResourceType = "s3-bucket"
-    Environment           = var.environment
-    ManagedBy             = "TerraPilot"
-    CostSensitive         = "true"
+    Environment            = var.environment
+    ManagedBy              = "TerraPilot"
+    CostSensitive          = "true"
   }
 }
 

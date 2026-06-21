@@ -2,7 +2,7 @@
 # Worker EC2 instances are targeted by the NLB.
 
 locals {
-  postgres_backup_bucket_name = var.postgres_backup_bucket_name != "" ? var.postgres_backup_bucket_name : substr(lower(replace("${var.project_name}-${var.environment}-postgres-backups-${random_id.suffix.hex}", "_", "-")), 0, 63)
+  postgres_backup_bucket_name = var.postgres_backup_bucket_name != "" ? var.postgres_backup_bucket_name : substr("${local.resource_prefix}-postgres-backups-${random_id.suffix.hex}", 0, 63)
 }
 
 resource "aws_security_group" "ingress_nginx_nodeports" {
@@ -36,18 +36,18 @@ resource "aws_security_group" "ingress_nginx_nodeports" {
   }
 
   tags = {
-    Name                  = "${local.resource_prefix}-ingress-nodeports"
-    Project               = var.project_name
-    TerraPilotProject     = var.project_name
+    Name                   = "${local.resource_prefix}-ingress-nodeports"
+    Project                = var.project_name
+    TerraPilotProject      = var.project_name
     TerraPilotResourceType = "kubernetes-ingress-nodeport-security-group"
-    Environment           = var.environment
-    ManagedBy             = "TerraPilot"
-    CostSensitive         = "false"
+    Environment            = var.environment
+    ManagedBy              = "TerraPilot"
+    CostSensitive          = "false"
   }
 }
 
 resource "aws_network_interface_sg_attachment" "ingress_nginx_nodeports" {
-  for_each             = var.enable_kubernetes_ingress_nlb ? {
+  for_each = var.enable_kubernetes_ingress_nlb ? {
     for key, instance in aws_instance.main : key => instance.primary_network_interface_id
     if local.ec2_instances_expanded[key].role == "kubernetes-worker"
   } : {}
@@ -63,13 +63,13 @@ resource "aws_lb" "ingress_nginx" {
   subnets            = local.public_subnet_ids
 
   tags = {
-    Name                  = "${local.resource_prefix}-ingress-nlb"
-    Project               = var.project_name
-    TerraPilotProject     = var.project_name
+    Name                   = "${local.resource_prefix}-ingress-nlb"
+    Project                = var.project_name
+    TerraPilotProject      = var.project_name
     TerraPilotResourceType = "network-load-balancer"
-    Environment           = var.environment
-    ManagedBy             = "TerraPilot"
-    CostSensitive         = "true"
+    Environment            = var.environment
+    ManagedBy              = "TerraPilot"
+    CostSensitive          = "true"
   }
 
   lifecycle {
@@ -133,7 +133,7 @@ resource "aws_lb_listener" "ingress_https" {
 }
 
 resource "aws_lb_target_group_attachment" "ingress_http_workers" {
-  for_each         = var.enable_kubernetes_ingress_nlb ? {
+  for_each = var.enable_kubernetes_ingress_nlb ? {
     for key, instance in aws_instance.main : key => instance
     if local.ec2_instances_expanded[key].role == "kubernetes-worker"
   } : {}
@@ -143,7 +143,7 @@ resource "aws_lb_target_group_attachment" "ingress_http_workers" {
 }
 
 resource "aws_lb_target_group_attachment" "ingress_https_workers" {
-  for_each         = var.enable_kubernetes_ingress_nlb ? {
+  for_each = var.enable_kubernetes_ingress_nlb ? {
     for key, instance in aws_instance.main : key => instance
     if local.ec2_instances_expanded[key].role == "kubernetes-worker"
   } : {}
@@ -170,13 +170,13 @@ resource "aws_s3_bucket" "postgres_backups" {
   force_destroy = false
 
   tags = {
-    Name                  = local.postgres_backup_bucket_name
-    Project               = var.project_name
-    TerraPilotProject     = var.project_name
+    Name                   = local.postgres_backup_bucket_name
+    Project                = var.project_name
+    TerraPilotProject      = var.project_name
     TerraPilotResourceType = "postgres-backup-bucket"
-    Environment           = var.environment
-    ManagedBy             = "TerraPilot"
-    CostSensitive         = "true"
+    Environment            = var.environment
+    ManagedBy              = "TerraPilot"
+    CostSensitive          = "true"
   }
 }
 
@@ -211,6 +211,23 @@ resource "aws_s3_bucket_ownership_controls" "postgres_backups" {
 
   rule {
     object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_ssm_parameter" "postgres_backup_bucket_name" {
+  name        = "/kubestate-recovery-lab/${local.environment_slug}/postgres-backup-bucket"
+  description = "PostgreSQL backup bucket used by the KubeState Recovery Lab Kubernetes CronJob."
+  type        = "String"
+  value       = aws_s3_bucket.postgres_backups.id
+
+  tags = {
+    Name                   = "${local.resource_prefix}-postgres-backup-bucket-parameter"
+    Project                = var.project_name
+    TerraPilotProject      = var.project_name
+    TerraPilotResourceType = "postgres-backup-bucket-parameter"
+    Environment            = var.environment
+    ManagedBy              = "TerraPilot"
+    CostSensitive          = "false"
   }
 }
 
@@ -254,4 +271,3 @@ resource "aws_iam_role_policy_attachment" "terrapilot_ebs_csi_driver" {
   role       = aws_iam_role.terrapilot_ec2_userdata.name
   policy_arn = var.ebs_csi_driver_policy_arn
 }
-

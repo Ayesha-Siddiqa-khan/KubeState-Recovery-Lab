@@ -159,6 +159,26 @@ output "postgres_backup_prefix" {
   value       = var.postgres_backup_prefix
 }
 
+output "ecr_repository_name" {
+  description = "ECR repository name for the FastAPI image"
+  value       = aws_ecr_repository.fastapi.name
+}
+
+output "ecr_repository_url" {
+  description = "ECR repository URL for the FastAPI image"
+  value       = aws_ecr_repository.fastapi.repository_url
+}
+
+output "github_actions_oidc_role_arn" {
+  description = "Store this value as GitHub Secret AWS_ROLE_TO_ASSUME"
+  value       = aws_iam_role.github_actions_deploy.arn
+}
+
+output "github_actions_kubeconfig_secret_name" {
+  description = "GitHub secret name expected by the deploy workflow"
+  value       = "KUBE_CONFIG_DATA"
+}
+
 output "kubestate_recovery_lab_next_steps" {
   description = "Post-bootstrap commands for the KubeState Recovery Lab application bundle"
   value = [

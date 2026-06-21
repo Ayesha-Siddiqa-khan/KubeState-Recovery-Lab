@@ -197,8 +197,6 @@ Safe local options:
 aws configure
 aws sts get-caller-identity
 AWS_PROFILE=<profile-name> terraform plan
-export AWS_ACCESS_KEY_ID=<your-access-key-id>
-export AWS_SECRET_ACCESS_KEY=<your-secret-access-key>
 aws sso login --profile <profile-name>
 ```
 
@@ -261,9 +259,10 @@ base64 -d /home/ubuntu/kubeconfig-private.b64 | grep "server:"
 cat /home/ubuntu/kubeconfig-public.b64
 ```
 
-Copy the full `kubeconfig-public.b64` output and save it as the GitHub Secret `KUBE_CONFIG_DATA` only if you later create a self-managed Kubernetes CI/CD deployment.
+Copy the full `kubeconfig-public.b64` output and save it as GitHub Secret `KUBE_CONFIG_DATA`.
+Also save Terraform output `github_actions_oidc_role_arn` as GitHub Secret `AWS_ROLE_TO_ASSUME` and your database password as GitHub Secret `POSTGRES_PASSWORD`.
 
-`KUBE_NAMESPACE` is a GitHub Variable, not a secret.
+No GitHub repository variables are required for the deploy workflow.
 Use `KUBE_CONFIG_DATA` only for self-managed Kubernetes CI/CD. Do not use it for EKS.
 Use public kubeconfig for GitHub-hosted runners. Use private kubeconfig only for self-hosted runners inside the VPC.
 If your `KUBE_CONFIG_DATA` contains a private IP like 10.x.x.x, GitHub Actions and external laptops will not be able to reach the Kubernetes API server.

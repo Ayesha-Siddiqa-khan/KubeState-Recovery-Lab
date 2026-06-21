@@ -3,6 +3,8 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_caller_identity" "current" {}
+
 
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -28,4 +30,3 @@ data "aws_ami" "ubuntu" {
     values = ["available"]
   }
 }
-

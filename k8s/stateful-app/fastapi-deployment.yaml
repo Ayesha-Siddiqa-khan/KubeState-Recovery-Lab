@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: fastapi
-          image: REPLACE_WITH_ECR_REPOSITORY_URL:latest
+          image: kubestate-recovery-lab-api:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -37,3 +37,10 @@ spec:
               port: http
             initialDelaySeconds: 30
             periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

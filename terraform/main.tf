@@ -13,13 +13,13 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = var.region
   default_tags {
     tags = {
-      Project     = "KubeState Recovery Lab API"
-      Environment = "dev"
-      ManagedBy   = "TerraPilot"
-      TerraPilotProject = "KubeState Recovery Lab API"
+      Project           = var.project_name
+      Environment       = var.environment
+      ManagedBy         = "TerraPilot"
+      TerraPilotProject = var.project_name
     }
   }
 }
@@ -29,5 +29,7 @@ resource "random_id" "suffix" {
 }
 
 locals {
-  resource_prefix = (var.project_name == var.environment || endswith(var.project_name, "-dev")) ? var.project_name : "${var.project_name}-${var.environment}"
+  project_slug     = trim(replace(lower(var.project_name), "/[^a-z0-9-]+/", "-"), "-")
+  environment_slug = trim(replace(lower(var.environment), "/[^a-z0-9-]+/", "-"), "-")
+  resource_prefix  = (local.project_slug == local.environment_slug || endswith(local.project_slug, "-${local.environment_slug}")) ? local.project_slug : "${local.project_slug}-${local.environment_slug}"
 }

@@ -12,6 +12,16 @@ venv/
 .env.*
 !.env.example
 
+# Local kubeconfig and generated Kubernetes secret material
+.kube/
+kubeconfig*
+*.kubeconfig
+KUBE_CONFIG_DATA*
+k8s/**/*-secret.yaml
+!k8s/**/*-secret.example.yaml
+!k8s/**/app-secret.example.yaml
+!k8s/**/postgres-secret.example.yaml
+
 # Local build artifacts
 dist/
 build/
@@ -38,6 +48,10 @@ Thumbs.db
 **/crash.*.log
 **/*.tfplan
 **/*.tfstate.backup
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
 
 # Keep evidence placeholders, but ignore large captured media by default.
 evidence/screenshots/*.png

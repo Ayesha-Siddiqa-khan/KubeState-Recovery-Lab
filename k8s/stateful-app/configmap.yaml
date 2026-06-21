@@ -4,10 +4,12 @@ metadata:
   name: fastapi-config
   namespace: stateful-app
 data:
+  APP_NAME: "KubeState Recovery Lab API"
   APP_ENV: "dev"
   POSTGRES_HOST: "postgres.stateful-app.svc.cluster.local"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "kubestate"
+  POSTGRES_USER: "kubestate"
   REDIS_HOST: "redis.stateful-app.svc.cluster.local"
   REDIS_PORT: "6379"
-  S3_BACKUP_PREFIX: "postgres-backups"
+  REDIS_DB: "0"

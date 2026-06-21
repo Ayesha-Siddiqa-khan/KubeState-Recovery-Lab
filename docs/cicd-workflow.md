@@ -30,33 +30,24 @@ The `id-token: write` permission allows GitHub Actions to request an OIDC token 
 
 ## Required GitHub Secrets
 
-Create these repository secrets:
+Create only these repository secrets:
 
-- `AWS_REGION` - AWS region, for example `us-east-1`
-- `AWS_ROLE_TO_ASSUME` - IAM role ARN trusted by GitHub OIDC
-- `ECR_REPOSITORY` - ECR repository name, for example `kubestate-recovery-lab-fastapi`
-- `KUBECONFIG_B64` - base64-encoded kubeconfig for the self-managed cluster
+- `AWS_ROLE_TO_ASSUME` - Terraform output `github_actions_oidc_role_arn`
+- `KUBE_CONFIG_DATA` - public base64 kubeconfig generated on the control-plane node
+- `POSTGRES_PASSWORD` - runtime PostgreSQL password used for both PostgreSQL and FastAPI
 
-`AWS_ROLE_TO_ASSUME` should be a GitHub OIDC role, not the EC2 node instance role. It needs permissions to log in to ECR and push images to the FastAPI repository.
+No GitHub repository variables are required. The workflow keeps stable project values in `.github/workflows/deploy.yml`.
 
-To create `KUBECONFIG_B64` locally:
-
-```bash
-base64 -w 0 ~/.kube/config
-```
-
-On macOS:
+Generate `KUBE_CONFIG_DATA` on the Kubernetes control-plane node:
 
 ```bash
-base64 ~/.kube/config | tr -d '\n'
+generate-kubeconfig-github
+cat /home/ubuntu/kubeconfig-public.b64
 ```
 
 ## Required GitHub Variables
 
-Create these repository variables:
-
-- `APP_NAME` - Kubernetes Deployment name, expected value: `fastapi-api`
-- `K8S_NAMESPACE` - Kubernetes namespace, expected value: `stateful-app`
+No repository variables are required.
 
 ## Docker Image Tags
 
@@ -69,7 +60,7 @@ The SHA tag is used for deployment because it is immutable and easy to trace bac
 
 ## How Deployment Works With A Self-Managed Cluster
 
-Because this project does not use EKS, the workflow does not call EKS-specific commands. Instead, it decodes the kubeconfig from `KUBECONFIG_B64` and uses plain `kubectl`.
+Because this project does not use EKS, the workflow does not call EKS-specific commands. Instead, it decodes `KUBE_CONFIG_DATA` and uses plain `kubectl`.
 
 Normal deployment applies:
 
@@ -87,20 +78,17 @@ Restore manifests are not applied during normal deployments because they are mea
 Check these areas first:
 
 - GitHub OIDC trust policy allows the repository and branch.
-- `AWS_ROLE_TO_ASSUME` points to the correct role ARN.
-- `ECR_REPOSITORY` matches the ECR repository name.
-- `KUBECONFIG_B64` is valid and points to the self-managed cluster.
+- `AWS_ROLE_TO_ASSUME` points to the Terraform-created OIDC role ARN.
+- `KUBE_CONFIG_DATA` is valid and points to the self-managed cluster.
 - The EC2 security group allows the GitHub runner to reach the Kubernetes API server.
 - The FastAPI image builds successfully.
-- The Kubernetes Deployment name matches `APP_NAME`.
-- The namespace matches `K8S_NAMESPACE`.
 - Pods can pull from ECR.
 
 Useful commands:
 
 ```bash
 kubectl -n stateful-app get pods -o wide
-kubectl -n stateful-app describe deployment fastapi-api
+kubectl -n stateful-app describe deployment fastapi
 kubectl -n stateful-app logs -l app=fastapi --tail=100
 kubectl -n stateful-app get events --sort-by=.metadata.creationTimestamp
 ```

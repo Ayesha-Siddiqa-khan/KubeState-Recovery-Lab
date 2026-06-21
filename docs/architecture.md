@@ -36,7 +36,7 @@ PostgreSQL PVC              Redis PVC
 
 - Main namespace: `stateful-app`
 - Restore namespace: `stateful-restore-test`
-- FastAPI Deployment: `fastapi-api`
+- FastAPI Deployment: `fastapi`
 - FastAPI Service: `fastapi`
 - PostgreSQL StatefulSet: `postgres`
 - PostgreSQL Service: `postgres`

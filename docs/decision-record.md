@@ -32,7 +32,7 @@ TODO: Add decisions for image registry naming, final StorageClass validation, S3
 
 ## DR-005: Use Terraform For AWS Infrastructure
 
-Decision: Add Terraform under `infra/` for the AWS VPC, EC2 nodes, S3 backup bucket, and ECR repository.
+Decision: Add Terraform under `terraform/` for the AWS VPC, EC2 nodes, S3 backup bucket, ECR repository, and GitHub Actions OIDC role.
 
 Reason: Terraform demonstrates infrastructure-as-code skills while keeping Kubernetes manifests plain and easy to review.
 

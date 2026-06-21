@@ -5,9 +5,9 @@ resource "aws_s3_bucket" "bootstrap" {
   force_destroy = true
 
   tags = {
-    Name        = "${local.resource_prefix}-bootstrap"
-    ManagedBy   = "TerraPilot"
-    Purpose     = "EC2 user-data bootstrap artifacts"
+    Name      = "${local.resource_prefix}-bootstrap"
+    ManagedBy = "TerraPilot"
+    Purpose   = "EC2 user-data bootstrap artifacts"
   }
 }
 
@@ -53,7 +53,7 @@ done
 echo "[TerraPilot][base] Base packages installed"
 
 EOT
-  etag    = md5(<<-EOT
+  etag = md5(<<-EOT
 #!/bin/bash
 echo "[TerraPilot][base] Installing common packages"
 export DEBIAN_FRONTEND=noninteractive
@@ -91,7 +91,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 log "Helm installation complete: $(helm version --short 2>/dev/null || true)"
 
 EOT
-  etag    = md5(<<-EOT
+  etag = md5(<<-EOT
 #!/bin/bash
 set -euo pipefail
 log() {
@@ -123,7 +123,7 @@ psql --version
 echo "[TerraPilot][postgres] PostgreSQL client setup complete"
 
 EOT
-  etag    = md5(<<-EOT
+  etag = md5(<<-EOT
 #!/bin/bash
 set -euo pipefail
 echo "[TerraPilot][postgres] Installing PostgreSQL client tools"
@@ -161,7 +161,7 @@ fi
 echo "[TerraPilot][nginx] Nginx setup complete"
 
 EOT
-  etag    = md5(<<-EOT
+  etag = md5(<<-EOT
 #!/bin/bash
 set -euo pipefail
 echo "[TerraPilot][nginx] Installing Nginx"
@@ -186,34 +186,34 @@ EOT
 }
 
 resource "aws_s3_object" "bootstrap_kubernetes_master_user_data" {
-  bucket  = aws_s3_bucket.bootstrap.id
-  key     = "scripts/kubernetes-master/kubernetes-master-user-data.sh"
+  bucket = aws_s3_bucket.bootstrap.id
+  key    = "scripts/kubernetes-master/kubernetes-master-user-data.sh"
   content = templatefile("${path.module}/scripts/master-user-data.sh", {
-    project_name             = var.project_name
-    environment              = var.environment
-    region                   = var.region
-    instance_name            = ""
-    instance_role            = "kubernetes-master"
-    aws_region               = var.region
-    ssm_join_private_path    = local.terrapilot_ssm_join_private_path
-    ssm_join_public_path     = local.terrapilot_ssm_join_public_path
-    ssm_auto_join_enabled    = local.terrapilot_ssm_auto_join_enabled
-    kagent_enabled           = var.kagent_enabled
-    kagent_provider          = var.kagent_provider
+    project_name               = var.project_name
+    environment                = var.environment
+    region                     = var.region
+    instance_name              = ""
+    instance_role              = "kubernetes-master"
+    aws_region                 = var.region
+    ssm_join_private_path      = local.terrapilot_ssm_join_private_path
+    ssm_join_public_path       = local.terrapilot_ssm_join_public_path
+    ssm_auto_join_enabled      = local.terrapilot_ssm_auto_join_enabled
+    kagent_enabled             = var.kagent_enabled
+    kagent_provider            = var.kagent_provider
     kagent_aws_credential_mode = var.kagent_aws_credential_mode
-    bedrock_region           = var.bedrock_region
-    bedrock_model_id         = var.bedrock_model_id
-    model_id                 = var.model_id
-    openai_api_key           = var.openai_api_key
-    anthropic_api_key        = var.anthropic_api_key
-    gemini_api_key           = var.gemini_api_key
-    ollama_endpoint          = var.ollama_endpoint
-    custom_provider_name     = var.custom_provider_name
-    custom_provider_endpoint = var.custom_provider_endpoint
-    custom_provider_api_key  = var.custom_provider_api_key
-    bootstrap_bucket         = aws_s3_bucket.bootstrap.id
+    bedrock_region             = var.bedrock_region
+    bedrock_model_id           = var.bedrock_model_id
+    model_id                   = var.model_id
+    openai_api_key             = var.openai_api_key
+    anthropic_api_key          = var.anthropic_api_key
+    gemini_api_key             = var.gemini_api_key
+    ollama_endpoint            = var.ollama_endpoint
+    custom_provider_name       = var.custom_provider_name
+    custom_provider_endpoint   = var.custom_provider_endpoint
+    custom_provider_api_key    = var.custom_provider_api_key
+    bootstrap_bucket           = aws_s3_bucket.bootstrap.id
   })
-  etag    = md5(file("${path.module}/scripts/master-user-data.sh"))
+  etag = md5(file("${path.module}/scripts/master-user-data.sh"))
 }
 
 resource "aws_s3_object" "bootstrap_kubernetes_worker_base_packages" {
@@ -236,7 +236,7 @@ done
 echo "[TerraPilot][base] Base packages installed"
 
 EOT
-  etag    = md5(<<-EOT
+  etag = md5(<<-EOT
 #!/bin/bash
 echo "[TerraPilot][base] Installing common packages"
 export DEBIAN_FRONTEND=noninteractive
@@ -257,65 +257,65 @@ EOT
 }
 
 resource "aws_s3_object" "bootstrap_kubernetes_worker_user_data" {
-  bucket  = aws_s3_bucket.bootstrap.id
-  key     = "scripts/kubernetes-worker/kubernetes-worker-user-data.sh"
+  bucket = aws_s3_bucket.bootstrap.id
+  key    = "scripts/kubernetes-worker/kubernetes-worker-user-data.sh"
   content = templatefile("${path.module}/scripts/worker-user-data.sh", {
-    project_name             = var.project_name
-    environment              = var.environment
-    region                   = var.region
-    instance_name            = ""
-    instance_role            = "kubernetes-worker"
-    aws_region               = var.region
-    ssm_join_private_path    = local.terrapilot_ssm_join_private_path
-    ssm_join_public_path     = local.terrapilot_ssm_join_public_path
-    ssm_auto_join_enabled    = local.terrapilot_ssm_auto_join_enabled
-    kagent_enabled           = var.kagent_enabled
-    kagent_provider          = var.kagent_provider
+    project_name               = var.project_name
+    environment                = var.environment
+    region                     = var.region
+    instance_name              = ""
+    instance_role              = "kubernetes-worker"
+    aws_region                 = var.region
+    ssm_join_private_path      = local.terrapilot_ssm_join_private_path
+    ssm_join_public_path       = local.terrapilot_ssm_join_public_path
+    ssm_auto_join_enabled      = local.terrapilot_ssm_auto_join_enabled
+    kagent_enabled             = var.kagent_enabled
+    kagent_provider            = var.kagent_provider
     kagent_aws_credential_mode = var.kagent_aws_credential_mode
-    bedrock_region           = var.bedrock_region
-    bedrock_model_id         = var.bedrock_model_id
-    model_id                 = var.model_id
-    openai_api_key           = var.openai_api_key
-    anthropic_api_key        = var.anthropic_api_key
-    gemini_api_key           = var.gemini_api_key
-    ollama_endpoint          = var.ollama_endpoint
-    custom_provider_name     = var.custom_provider_name
-    custom_provider_endpoint = var.custom_provider_endpoint
-    custom_provider_api_key  = var.custom_provider_api_key
-    bootstrap_bucket         = aws_s3_bucket.bootstrap.id
+    bedrock_region             = var.bedrock_region
+    bedrock_model_id           = var.bedrock_model_id
+    model_id                   = var.model_id
+    openai_api_key             = var.openai_api_key
+    anthropic_api_key          = var.anthropic_api_key
+    gemini_api_key             = var.gemini_api_key
+    ollama_endpoint            = var.ollama_endpoint
+    custom_provider_name       = var.custom_provider_name
+    custom_provider_endpoint   = var.custom_provider_endpoint
+    custom_provider_api_key    = var.custom_provider_api_key
+    bootstrap_bucket           = aws_s3_bucket.bootstrap.id
   })
-  etag    = md5(file("${path.module}/scripts/worker-user-data.sh"))
+  etag = md5(file("${path.module}/scripts/worker-user-data.sh"))
 }
 
 resource "aws_s3_object" "bootstrap_common_setup" {
-  bucket  = aws_s3_bucket.bootstrap.id
-  key     = "scripts/common-setup.sh"
+  bucket = aws_s3_bucket.bootstrap.id
+  key    = "scripts/common-setup.sh"
   content = templatefile("${path.module}/scripts/common-setup.sh", {
-    project_name             = var.project_name
-    environment              = var.environment
-    region                   = var.region
-    instance_name            = ""
-    instance_role            = "web"
-    aws_region               = var.region
-    ssm_join_private_path    = local.terrapilot_ssm_join_private_path
-    ssm_join_public_path     = local.terrapilot_ssm_join_public_path
-    ssm_auto_join_enabled    = local.terrapilot_ssm_auto_join_enabled
-    kagent_enabled           = var.kagent_enabled
-    kagent_provider          = var.kagent_provider
+    project_name               = var.project_name
+    environment                = var.environment
+    region                     = var.region
+    instance_name              = ""
+    instance_role              = "web"
+    aws_region                 = var.region
+    ssm_join_private_path      = local.terrapilot_ssm_join_private_path
+    ssm_join_public_path       = local.terrapilot_ssm_join_public_path
+    ssm_auto_join_enabled      = local.terrapilot_ssm_auto_join_enabled
+    kagent_enabled             = var.kagent_enabled
+    kagent_provider            = var.kagent_provider
     kagent_aws_credential_mode = var.kagent_aws_credential_mode
-    bedrock_region           = var.bedrock_region
-    bedrock_model_id         = var.bedrock_model_id
-    model_id                 = var.model_id
-    openai_api_key           = var.openai_api_key
-    anthropic_api_key        = var.anthropic_api_key
-    gemini_api_key           = var.gemini_api_key
-    ollama_endpoint          = var.ollama_endpoint
-    custom_provider_name     = var.custom_provider_name
-    custom_provider_endpoint = var.custom_provider_endpoint
-    custom_provider_api_key  = var.custom_provider_api_key
-    bootstrap_bucket         = aws_s3_bucket.bootstrap.id
+    bedrock_region             = var.bedrock_region
+    bedrock_model_id           = var.bedrock_model_id
+    model_id                   = var.model_id
+    openai_api_key             = var.openai_api_key
+    anthropic_api_key          = var.anthropic_api_key
+    gemini_api_key             = var.gemini_api_key
+    ollama_endpoint            = var.ollama_endpoint
+    custom_provider_name       = var.custom_provider_name
+    custom_provider_endpoint   = var.custom_provider_endpoint
+    custom_provider_api_key    = var.custom_provider_api_key
+    bootstrap_bucket           = aws_s3_bucket.bootstrap.id
   })
-  etag    = md5(file("${path.module}/scripts/common-setup.sh"))
+  etag = md5(file("${path.module}/scripts/common-setup.sh"))
 }
 
 resource "aws_s3_object" "bootstrap_verify_packages" {
@@ -362,7 +362,7 @@ resource "aws_s3_object" "bootstrap_plan" {
   }
 }
 EOT
-  etag    = md5(<<-EOT
+  etag = md5(<<-EOT
 {
   "project": "KubeState Recovery Lab API",
   "environment": "dev",
@@ -411,10 +411,10 @@ locals {
 
 
 locals {
-  terrapilot_ssm_join_private_path = "/terrapilot/${var.project_name}/${var.environment}/kubernetes/join-command/private"
-  terrapilot_ssm_join_public_path  = "/terrapilot/${var.project_name}/${var.environment}/kubernetes/join-command/public"
+  terrapilot_ssm_join_private_path = "/terrapilot/${local.project_slug}/${local.environment_slug}/kubernetes/join-command/private"
+  terrapilot_ssm_join_public_path  = "/terrapilot/${local.project_slug}/${local.environment_slug}/kubernetes/join-command/public"
   terrapilot_ssm_auto_join_enabled = true
-  }
+}
 
 
 resource "aws_iam_role" "terrapilot_ec2_userdata" {
@@ -453,7 +453,7 @@ resource "aws_iam_policy" "terrapilot_worker_join_ssm" {
           "ssm:GetParameter",
           "ssm:GetParameters"
         ]
-        Resource = "arn:aws:ssm:*:*:parameter/terrapilot/${var.project_name}/${var.environment}/*"
+        Resource = "arn:aws:ssm:*:*:parameter/terrapilot/${local.project_slug}/${local.environment_slug}/*"
       }
     ]
   })
@@ -523,16 +523,16 @@ locals {
     for inst in flatten([
       for item_index, item in var.ec2_instances : [
         for idx in range(item.quantity) : {
-          key                   = contains(local.ec2_duplicate_names, item.name) ? "${item.name}-${item_index + 1}-${idx + 1}" : "${item.name}-${idx + 1}"
-          name                  = contains(local.ec2_duplicate_names, item.name) ? "${item.name}-${item_index + 1}-${idx + 1}" : "${item.name}-${idx + 1}"
-          base_name             = item.name
-          instance_type         = item.instance_type
-          subnet_type           = item.subnet_type
-          associate_public_ip   = item.associate_public_ip
-          root_volume_size      = item.root_volume_size
-          root_volume_type      = item.root_volume_type
-          encrypt_root_volume   = item.encrypt_root_volume
-          role                  = item.role
+          key                 = contains(local.ec2_duplicate_names, item.name) ? "${item.name}-${item_index + 1}-${idx + 1}" : "${item.name}-${idx + 1}"
+          name                = contains(local.ec2_duplicate_names, item.name) ? "${item.name}-${item_index + 1}-${idx + 1}" : "${item.name}-${idx + 1}"
+          base_name           = item.name
+          instance_type       = item.instance_type
+          subnet_type         = item.subnet_type
+          associate_public_ip = item.associate_public_ip
+          root_volume_size    = item.root_volume_size
+          root_volume_type    = item.root_volume_type
+          encrypt_root_volume = item.encrypt_root_volume
+          role                = item.role
         }
       ]
     ]) : inst.key => inst
@@ -551,77 +551,77 @@ resource "aws_instance" "main" {
   vpc_security_group_ids      = local.ec2_security_group_ids
   key_name                    = local.ec2_key_name
   user_data_base64 = each.value.role == "kubernetes-master" ? base64gzip(templatefile("${path.module}/scripts/bootstrap-user-data.sh", {
-    project_name             = var.project_name
-    environment              = var.environment
-    region                   = var.region
-    instance_name            = each.value.base_name
-    instance_role            = "kubernetes-master"
-    aws_region               = var.region
-    ssm_join_private_path    = local.terrapilot_ssm_join_private_path
-    ssm_join_public_path     = local.terrapilot_ssm_join_public_path
-    ssm_auto_join_enabled    = local.terrapilot_ssm_auto_join_enabled
-    kagent_enabled           = var.kagent_enabled
-    kagent_provider          = var.kagent_provider
+    project_name               = var.project_name
+    environment                = var.environment
+    region                     = var.region
+    instance_name              = each.value.base_name
+    instance_role              = "kubernetes-master"
+    aws_region                 = var.region
+    ssm_join_private_path      = local.terrapilot_ssm_join_private_path
+    ssm_join_public_path       = local.terrapilot_ssm_join_public_path
+    ssm_auto_join_enabled      = local.terrapilot_ssm_auto_join_enabled
+    kagent_enabled             = var.kagent_enabled
+    kagent_provider            = var.kagent_provider
     kagent_aws_credential_mode = var.kagent_aws_credential_mode
-    bedrock_region           = var.bedrock_region
-    bedrock_model_id         = var.bedrock_model_id
-    model_id                 = var.model_id
-    openai_api_key           = var.openai_api_key
-    anthropic_api_key        = var.anthropic_api_key
-    gemini_api_key           = var.gemini_api_key
-    ollama_endpoint          = var.ollama_endpoint
-    custom_provider_name     = var.custom_provider_name
-    custom_provider_endpoint = var.custom_provider_endpoint
-    custom_provider_api_key  = var.custom_provider_api_key
-    bootstrap_bucket         = aws_s3_bucket.bootstrap.id
-  })) : each.value.role == "kubernetes-worker" ? base64gzip(templatefile("${path.module}/scripts/bootstrap-user-data.sh", {
-    project_name             = var.project_name
-    environment              = var.environment
-    region                   = var.region
-    instance_name            = each.value.base_name
-    instance_role            = "kubernetes-worker"
-    aws_region               = var.region
-    ssm_join_private_path    = local.terrapilot_ssm_join_private_path
-    ssm_join_public_path     = local.terrapilot_ssm_join_public_path
-    ssm_auto_join_enabled    = local.terrapilot_ssm_auto_join_enabled
-    kagent_enabled           = var.kagent_enabled
-    kagent_provider          = var.kagent_provider
+    bedrock_region             = var.bedrock_region
+    bedrock_model_id           = var.bedrock_model_id
+    model_id                   = var.model_id
+    openai_api_key             = var.openai_api_key
+    anthropic_api_key          = var.anthropic_api_key
+    gemini_api_key             = var.gemini_api_key
+    ollama_endpoint            = var.ollama_endpoint
+    custom_provider_name       = var.custom_provider_name
+    custom_provider_endpoint   = var.custom_provider_endpoint
+    custom_provider_api_key    = var.custom_provider_api_key
+    bootstrap_bucket           = aws_s3_bucket.bootstrap.id
+    })) : each.value.role == "kubernetes-worker" ? base64gzip(templatefile("${path.module}/scripts/bootstrap-user-data.sh", {
+    project_name               = var.project_name
+    environment                = var.environment
+    region                     = var.region
+    instance_name              = each.value.base_name
+    instance_role              = "kubernetes-worker"
+    aws_region                 = var.region
+    ssm_join_private_path      = local.terrapilot_ssm_join_private_path
+    ssm_join_public_path       = local.terrapilot_ssm_join_public_path
+    ssm_auto_join_enabled      = local.terrapilot_ssm_auto_join_enabled
+    kagent_enabled             = var.kagent_enabled
+    kagent_provider            = var.kagent_provider
     kagent_aws_credential_mode = var.kagent_aws_credential_mode
-    bedrock_region           = var.bedrock_region
-    bedrock_model_id         = var.bedrock_model_id
-    model_id                 = var.model_id
-    openai_api_key           = var.openai_api_key
-    anthropic_api_key        = var.anthropic_api_key
-    gemini_api_key           = var.gemini_api_key
-    ollama_endpoint          = var.ollama_endpoint
-    custom_provider_name     = var.custom_provider_name
-    custom_provider_endpoint = var.custom_provider_endpoint
-    custom_provider_api_key  = var.custom_provider_api_key
-    bootstrap_bucket         = aws_s3_bucket.bootstrap.id
-  })) : base64gzip(templatefile("${path.module}/scripts/bootstrap-user-data.sh", {
-    project_name             = var.project_name
-    environment              = var.environment
-    region                   = var.region
-    instance_name            = each.value.base_name
-    instance_role            = "kubernetes-master"
-    aws_region               = var.region
-    ssm_join_private_path    = local.terrapilot_ssm_join_private_path
-    ssm_join_public_path     = local.terrapilot_ssm_join_public_path
-    ssm_auto_join_enabled    = local.terrapilot_ssm_auto_join_enabled
-    kagent_enabled           = var.kagent_enabled
-    kagent_provider          = var.kagent_provider
+    bedrock_region             = var.bedrock_region
+    bedrock_model_id           = var.bedrock_model_id
+    model_id                   = var.model_id
+    openai_api_key             = var.openai_api_key
+    anthropic_api_key          = var.anthropic_api_key
+    gemini_api_key             = var.gemini_api_key
+    ollama_endpoint            = var.ollama_endpoint
+    custom_provider_name       = var.custom_provider_name
+    custom_provider_endpoint   = var.custom_provider_endpoint
+    custom_provider_api_key    = var.custom_provider_api_key
+    bootstrap_bucket           = aws_s3_bucket.bootstrap.id
+    })) : base64gzip(templatefile("${path.module}/scripts/bootstrap-user-data.sh", {
+    project_name               = var.project_name
+    environment                = var.environment
+    region                     = var.region
+    instance_name              = each.value.base_name
+    instance_role              = "kubernetes-master"
+    aws_region                 = var.region
+    ssm_join_private_path      = local.terrapilot_ssm_join_private_path
+    ssm_join_public_path       = local.terrapilot_ssm_join_public_path
+    ssm_auto_join_enabled      = local.terrapilot_ssm_auto_join_enabled
+    kagent_enabled             = var.kagent_enabled
+    kagent_provider            = var.kagent_provider
     kagent_aws_credential_mode = var.kagent_aws_credential_mode
-    bedrock_region           = var.bedrock_region
-    bedrock_model_id         = var.bedrock_model_id
-    model_id                 = var.model_id
-    openai_api_key           = var.openai_api_key
-    anthropic_api_key        = var.anthropic_api_key
-    gemini_api_key           = var.gemini_api_key
-    ollama_endpoint          = var.ollama_endpoint
-    custom_provider_name     = var.custom_provider_name
-    custom_provider_endpoint = var.custom_provider_endpoint
-    custom_provider_api_key  = var.custom_provider_api_key
-    bootstrap_bucket         = aws_s3_bucket.bootstrap.id
+    bedrock_region             = var.bedrock_region
+    bedrock_model_id           = var.bedrock_model_id
+    model_id                   = var.model_id
+    openai_api_key             = var.openai_api_key
+    anthropic_api_key          = var.anthropic_api_key
+    gemini_api_key             = var.gemini_api_key
+    ollama_endpoint            = var.ollama_endpoint
+    custom_provider_name       = var.custom_provider_name
+    custom_provider_endpoint   = var.custom_provider_endpoint
+    custom_provider_api_key    = var.custom_provider_api_key
+    bootstrap_bucket           = aws_s3_bucket.bootstrap.id
   }))
 
   user_data_replace_on_change = true
@@ -629,8 +629,9 @@ resource "aws_instance" "main" {
   iam_instance_profile = aws_iam_instance_profile.terrapilot_ec2_userdata.name
 
   metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
   }
 
   root_block_device {
@@ -641,14 +642,14 @@ resource "aws_instance" "main" {
   }
 
   tags = {
-    Name                  = each.value.name
-    Role                  = each.value.role
-    Project               = var.project_name
-    TerraPilotProject     = var.project_name
+    Name                   = each.value.name
+    Role                   = each.value.role
+    Project                = var.project_name
+    TerraPilotProject      = var.project_name
     TerraPilotResourceType = "ec2-instance"
-    Environment           = var.environment
-    ManagedBy             = "TerraPilot"
-    CostSensitive         = "true"
+    Environment            = var.environment
+    ManagedBy              = "TerraPilot"
+    CostSensitive          = "true"
   }
 
   depends_on = [
@@ -680,4 +681,3 @@ resource "aws_instance" "main" {
     }
   }
 }
-
