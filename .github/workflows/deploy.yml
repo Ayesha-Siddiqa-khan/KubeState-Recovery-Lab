@@ -127,13 +127,9 @@ jobs:
         run: |
           set -euo pipefail
           READY_WORKERS="$(kubectl get nodes --no-headers | awk '$2 == "Ready" && $3 !~ /control-plane|master/ { count++ } END { print count + 0 }')"
-          if [ "$READY_WORKERS" = "0" ]; then
-            echo "::warning::No Ready worker nodes found; allowing workloads on the control-plane node for this lab deploy."
-            kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
-            kubectl taint nodes --all node-role.kubernetes.io/master- || true
-          else
-            echo "Found $READY_WORKERS Ready worker node(s); leaving control-plane taints unchanged."
-          fi
+          echo "Found $READY_WORKERS Ready worker node(s). Allowing the control-plane as lab overflow capacity."
+          kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
+          kubectl taint nodes --all node-role.kubernetes.io/master- || true
           kubectl get nodes -o wide
 
       - name: Install EBS CSI driver

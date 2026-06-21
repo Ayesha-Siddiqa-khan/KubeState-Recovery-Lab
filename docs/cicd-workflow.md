@@ -62,7 +62,7 @@ The SHA tag is used for deployment because it is immutable and easy to trace bac
 
 Because this project does not use EKS, the workflow does not call EKS-specific commands. Instead, it decodes `KUBE_CONFIG_DATA` and uses plain `kubectl`.
 
-If no Ready worker node is present, the workflow removes the standard control-plane taints so this lab can still schedule workloads on a single-node cluster. When workers are Ready, the workflow leaves control-plane taints unchanged.
+The workflow removes the standard control-plane taints so this lab can use the control-plane as overflow scheduling capacity. The default worker size is intentionally small, and keeping the control-plane schedulable makes demo deploys more reliable.
 
 The workflow creates an `ecr-pull-secret` Docker registry secret in the application namespace on every run. This lets the self-managed Kubernetes nodes pull the private FastAPI image from Amazon ECR without requiring a kubelet ECR credential provider.
 
@@ -74,6 +74,8 @@ Normal deployment applies:
 - Redis manifests
 - FastAPI manifests
 - backup CronJob manifests
+
+FastAPI runs as one replica by default with a no-surge rolling update strategy. This keeps the deployment within the memory budget of the small lab nodes. Increase `spec.replicas` after adding larger or additional workers.
 
 PostgreSQL stores data under `/var/lib/postgresql/data/pgdata` inside the mounted PVC. This avoids first-boot failures on ext4-backed EBS volumes that include filesystem metadata at the mount root.
 
