@@ -523,5 +523,5 @@ variable "postgres_backup_prefix" {
 variable "ebs_csi_driver_policy_arn" {
   description = "AWS managed policy attached to EC2 node roles for the self-managed Kubernetes EBS CSI driver"
   type        = string
-  default     = "arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicyV2"
+  default     = "arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicy"
 }

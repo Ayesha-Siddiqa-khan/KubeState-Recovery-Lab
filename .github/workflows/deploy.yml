@@ -126,8 +126,21 @@ jobs:
       - name: Install EBS CSI driver
         run: |
           set -euo pipefail
-          echo "Installing AWS EBS CSI driver..."
-          kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.62"
+          echo "Checking if EBS CSI driver is already installed..."
+          if kubectl get deployment ebs-csi-controller -n kube-system >/dev/null 2>&1; then
+            echo "EBS CSI controller deployment already exists; skipping install."
+          else
+            echo "Installing AWS EBS CSI driver via Helm..."
+            curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+            helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+            helm repo update
+            helm upgrade --install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver \
+              --namespace kube-system \
+              --version 2.27.0 \
+              --set controller.serviceAccount.create=true \
+              --set controller.serviceAccount.name=ebs-csi-controller-sa \
+              --wait --timeout 5m
+          fi
           echo "Waiting for EBS CSI controller to be ready..."
           kubectl -n kube-system rollout status deployment/ebs-csi-controller --timeout=180s
 
