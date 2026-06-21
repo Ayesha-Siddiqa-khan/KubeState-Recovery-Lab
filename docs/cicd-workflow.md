@@ -62,6 +62,8 @@ The SHA tag is used for deployment because it is immutable and easy to trace bac
 
 Because this project does not use EKS, the workflow does not call EKS-specific commands. Instead, it decodes `KUBE_CONFIG_DATA` and uses plain `kubectl`.
 
+If no Ready worker node is present, the workflow removes the standard control-plane taints so this lab can still schedule workloads on a single-node cluster. When workers are Ready, the workflow leaves control-plane taints unchanged.
+
 Normal deployment applies:
 
 - namespaces
@@ -70,6 +72,8 @@ Normal deployment applies:
 - Redis manifests
 - FastAPI manifests
 - backup CronJob manifests
+
+PostgreSQL stores data under `/var/lib/postgresql/data/pgdata` inside the mounted PVC. This avoids first-boot failures on ext4-backed EBS volumes that include filesystem metadata at the mount root.
 
 Restore manifests are not applied during normal deployments because they are meant for disaster recovery tests.
 

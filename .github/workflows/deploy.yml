@@ -123,6 +123,19 @@ jobs:
           kubectl cluster-info
           kubectl get nodes -o wide
 
+      - name: Prepare schedulable nodes
+        run: |
+          set -euo pipefail
+          READY_WORKERS="$(kubectl get nodes --no-headers | awk '$2 == "Ready" && $3 !~ /control-plane|master/ { count++ } END { print count + 0 }')"
+          if [ "$READY_WORKERS" = "0" ]; then
+            echo "::warning::No Ready worker nodes found; allowing workloads on the control-plane node for this lab deploy."
+            kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
+            kubectl taint nodes --all node-role.kubernetes.io/master- || true
+          else
+            echo "Found $READY_WORKERS Ready worker node(s); leaving control-plane taints unchanged."
+          fi
+          kubectl get nodes -o wide
+
       - name: Install EBS CSI driver
         run: |
           set -euo pipefail
@@ -234,18 +247,25 @@ jobs:
           kubectl apply -f k8s/storage/gp3-storageclass.yaml
 
       - name: Create runtime secrets
+        env:
+          POSTGRES_PASSWORD_VALUE: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
           set -euo pipefail
+          if [ -z "$POSTGRES_PASSWORD_VALUE" ]; then
+            echo "::error::GitHub secret POSTGRES_PASSWORD is required and must not be empty."
+            exit 1
+          fi
+
           kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
           kubectl -n "$K8S_NAMESPACE" create secret generic postgres-secret \
             --from-literal=POSTGRES_DB="$POSTGRES_DB" \
             --from-literal=POSTGRES_USER="$POSTGRES_USER" \
-            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD_VALUE" \
             --dry-run=client -o yaml | kubectl apply -f -
 
           kubectl -n "$K8S_NAMESPACE" create secret generic fastapi-secret \
-            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD_VALUE" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create backup config from Terraform metadata
@@ -267,17 +287,41 @@ jobs:
       - name: Apply Kubernetes manifests
         run: |
           set -euo pipefail
+          dump_stateful_app_diagnostics() {
+            echo "::group::Stateful app diagnostics"
+            kubectl get nodes -o wide || true
+            kubectl get storageclass,pv -o wide || true
+            kubectl -n "$K8S_NAMESPACE" get deploy,sts,svc,ingress,pods,pvc -o wide || true
+            kubectl -n "$K8S_NAMESPACE" describe statefulset/postgres || true
+            kubectl -n "$K8S_NAMESPACE" describe statefulset/redis || true
+            kubectl -n "$K8S_NAMESPACE" describe deployment/"$K8S_DEPLOYMENT" || true
+            for pod in $(kubectl -n "$K8S_NAMESPACE" get pods -o name || true); do
+              kubectl -n "$K8S_NAMESPACE" describe "$pod" || true
+              kubectl -n "$K8S_NAMESPACE" logs "$pod" --all-containers --tail=120 || true
+              kubectl -n "$K8S_NAMESPACE" logs "$pod" --all-containers --previous --tail=120 || true
+            done
+            kubectl -n "$K8S_NAMESPACE" get events --sort-by=.metadata.creationTimestamp | tail -n 100 || true
+            echo "::endgroup::"
+          }
+
+          wait_for_rollout() {
+            local description="$1"
+            shift
+            echo "Waiting for $description to be ready..."
+            if ! "$@"; then
+              dump_stateful_app_diagnostics
+              exit 1
+            fi
+          }
+
           kubectl apply -k k8s/stateful-app
 
-          echo "Waiting for PostgreSQL StatefulSet to be ready..."
-          kubectl -n "$K8S_NAMESPACE" rollout status statefulset/postgres --timeout=180s
-
-          echo "Waiting for Redis StatefulSet to be ready..."
-          kubectl -n "$K8S_NAMESPACE" rollout status statefulset/redis --timeout=120s
+          wait_for_rollout "PostgreSQL StatefulSet" kubectl -n "$K8S_NAMESPACE" rollout status statefulset/postgres --timeout=300s
+          wait_for_rollout "Redis StatefulSet" kubectl -n "$K8S_NAMESPACE" rollout status statefulset/redis --timeout=180s
 
           echo "Rolling out FastAPI deployment..."
           kubectl -n "$K8S_NAMESPACE" set image "deployment/$K8S_DEPLOYMENT" "$K8S_CONTAINER=$IMAGE_URI"
-          kubectl -n "$K8S_NAMESPACE" rollout status "deployment/$K8S_DEPLOYMENT" --timeout=180s
+          wait_for_rollout "FastAPI Deployment" kubectl -n "$K8S_NAMESPACE" rollout status "deployment/$K8S_DEPLOYMENT" --timeout=240s
 
       - name: Show rollout state
         if: always()
