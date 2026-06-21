@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -25,15 +26,26 @@ logger = logging.getLogger("kubestate-api")
 
 SERVICE_NAME = os.getenv("APP_NAME", "KubeState Recovery Lab API")
 VISIT_COUNTER_KEY = os.getenv("VISIT_COUNTER_KEY", "kubestate:visits")
+STARTUP_SCHEMA_TIMEOUT_SECONDS = float(os.getenv("APP_STARTUP_SCHEMA_TIMEOUT_SECONDS", "10"))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        create_tables()
+        await asyncio.wait_for(
+            asyncio.to_thread(create_tables),
+            timeout=STARTUP_SCHEMA_TIMEOUT_SECONDS,
+        )
         logger.info("Database schema check completed")
+    except TimeoutError:
+        logger.exception(
+            "Database schema check timed out after %.1f seconds; readiness will report unhealthy",
+            STARTUP_SCHEMA_TIMEOUT_SECONDS,
+        )
     except SQLAlchemyError:
         logger.exception("Database schema check failed; readiness will report unhealthy")
+    except Exception:
+        logger.exception("Unexpected database schema check failure; readiness will report unhealthy")
 
     yield
 

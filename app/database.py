@@ -26,9 +26,13 @@ def _database_url() -> str:
 
 engine = create_engine(
     _database_url(),
+    connect_args={
+        "connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT_SECONDS", "5")),
+    },
     pool_pre_ping=True,
-    pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
-    max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
+    pool_size=int(os.getenv("DB_POOL_SIZE", "2")),
+    max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "0")),
+    pool_timeout=int(os.getenv("DB_POOL_TIMEOUT_SECONDS", "5")),
 )
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -50,4 +54,3 @@ def check_database() -> bool:
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
     return True
-

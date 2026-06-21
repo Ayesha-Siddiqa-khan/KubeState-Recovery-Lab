@@ -77,6 +77,8 @@ Normal deployment applies:
 
 FastAPI runs as one replica by default with a no-surge rolling update strategy. This keeps the deployment within the memory budget of the small lab nodes. Increase `spec.replicas` after adding larger or additional workers.
 
+FastAPI startup runs the database schema check with short PostgreSQL connection and pool timeouts. Redis readiness checks also use bounded socket timeouts. The container has a `startupProbe`, so slow startup does not trigger liveness restarts before the HTTP server has a chance to bind.
+
 PostgreSQL stores data under `/var/lib/postgresql/data/pgdata` inside the mounted PVC. This avoids first-boot failures on ext4-backed EBS volumes that include filesystem metadata at the mount root.
 
 If an older `postgres-0` pod is still using the mount root as its data directory, the workflow deletes that pod after applying manifests so the StatefulSet recreates it with the corrected `PGDATA` environment variable. The PersistentVolumeClaim is kept.
