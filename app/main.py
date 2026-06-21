@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from sqlalchemy import select
@@ -29,8 +29,7 @@ VISIT_COUNTER_KEY = os.getenv("VISIT_COUNTER_KEY", "kubestate:visits")
 STARTUP_SCHEMA_TIMEOUT_SECONDS = float(os.getenv("APP_STARTUP_SCHEMA_TIMEOUT_SECONDS", "10"))
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+async def initialize_schema() -> None:
     try:
         await asyncio.wait_for(
             asyncio.to_thread(create_tables),
@@ -47,7 +46,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Unexpected database schema check failure; readiness will report unhealthy")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    schema_task = asyncio.create_task(initialize_schema())
+
     yield
+
+    if not schema_task.done():
+        schema_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await schema_task
 
 
 app = FastAPI(
