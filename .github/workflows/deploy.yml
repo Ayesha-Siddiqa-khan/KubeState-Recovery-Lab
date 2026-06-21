@@ -302,12 +302,15 @@ jobs:
             kubectl -n "$K8S_NAMESPACE" describe statefulset/postgres || true
             kubectl -n "$K8S_NAMESPACE" describe statefulset/redis || true
             kubectl -n "$K8S_NAMESPACE" describe deployment/"$K8S_DEPLOYMENT" || true
+            kubectl -n "$K8S_NAMESPACE" describe pods -l app=fastapi || true
+            kubectl -n "$K8S_NAMESPACE" logs -l app=fastapi --all-containers --tail=200 || true
+            kubectl -n "$K8S_NAMESPACE" logs -l app=fastapi --all-containers --previous --tail=200 || true
             for pod in $(kubectl -n "$K8S_NAMESPACE" get pods -o name || true); do
               kubectl -n "$K8S_NAMESPACE" describe "$pod" || true
-              kubectl -n "$K8S_NAMESPACE" logs "$pod" --all-containers --tail=120 || true
-              kubectl -n "$K8S_NAMESPACE" logs "$pod" --all-containers --previous --tail=120 || true
+              kubectl -n "$K8S_NAMESPACE" logs "$pod" --all-containers --tail=200 || true
+              kubectl -n "$K8S_NAMESPACE" logs "$pod" --all-containers --previous --tail=200 || true
             done
-            kubectl -n "$K8S_NAMESPACE" get events --sort-by=.metadata.creationTimestamp | tail -n 100 || true
+            kubectl -n "$K8S_NAMESPACE" get events --sort-by=.metadata.creationTimestamp || true
             echo "::endgroup::"
           }
 
