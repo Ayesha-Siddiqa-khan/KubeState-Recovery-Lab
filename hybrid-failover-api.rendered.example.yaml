@@ -1,0 +1,20 @@
+# Example rendered deployment values for portfolio documentation only.
+# This file is not applied by the KubeState Recovery Lab deployment scripts.
+
+project: kubestate-recovery-lab
+environment: portfolio
+api:
+  image: 000000000000.dkr.ecr.us-east-1.amazonaws.com/kubestate-recovery-lab-fastapi:latest
+  host: app.example.com
+database:
+  engine: postgresql
+  namespace: stateful-app
+  service: postgres
+cache:
+  engine: redis
+  namespace: stateful-app
+  service: redis
+backup:
+  target: s3
+  pathPattern: s3://PROJECT_BUCKET/postgres-backups/YYYY-MM-DD/database-backup-HH-MM-SS.sql
+

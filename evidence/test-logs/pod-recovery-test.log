@@ -1,0 +1,8 @@
+TODO(Phase 2): Paste PostgreSQL pod deletion and recovery output here.
+
+Expected proof:
+- PostgreSQL pod was deleted.
+- StatefulSet recreated the pod.
+- PVC stayed bound.
+- Existing data was still available.
+

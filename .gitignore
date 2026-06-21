@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local build artifacts
+dist/
+build/
+*.egg-info/
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs and generated evidence
+*.tmp
+*.bak
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/terraform.tfvars
+**/crash.log
+**/crash.*.log
+**/*.tfplan
+**/*.tfstate.backup
+
+# Keep evidence placeholders, but ignore large captured media by default.
+evidence/screenshots/*.png
+evidence/screenshots/*.jpg
+evidence/screenshots/*.jpeg
+evidence/screenshots/*.webp
+!evidence/screenshots/*placeholder.md

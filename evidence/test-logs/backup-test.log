@@ -1,0 +1,7 @@
+TODO(Phase 2): Paste manual backup test output here.
+
+Expected proof:
+- Backup job or command completed successfully.
+- Backup file path is visible.
+- S3 upload succeeded.
+

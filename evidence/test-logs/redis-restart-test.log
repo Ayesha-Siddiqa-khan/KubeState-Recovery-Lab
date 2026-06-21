@@ -1,0 +1,7 @@
+TODO(Phase 2): Paste Redis restart test output here.
+
+Expected proof:
+- Visit counter exists before Redis pod deletion.
+- Redis pod is recreated.
+- Visit counter still exists after restart.
+

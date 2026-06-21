@@ -1,0 +1,7 @@
+TODO(Phase 2): Paste node drain test output here.
+
+Expected proof:
+- Node was drained safely.
+- Pods rescheduled where possible.
+- Stateful storage behavior was documented.
+
