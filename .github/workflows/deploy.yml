@@ -299,12 +299,18 @@ jobs:
             kubectl get nodes -o wide || true
             kubectl get storageclass,pv -o wide || true
             kubectl -n "$K8S_NAMESPACE" get deploy,sts,svc,ingress,pods,pvc -o wide || true
+            kubectl -n "$K8S_NAMESPACE" get endpoints postgres redis -o wide || true
+            kubectl -n "$K8S_NAMESPACE" get svc postgres redis -o yaml || true
+            kubectl -n kube-system get pods -l k8s-app=kube-dns -o wide || true
+            kubectl -n kube-system logs -l k8s-app=kube-dns --tail=100 || true
             kubectl -n "$K8S_NAMESPACE" describe statefulset/postgres || true
             kubectl -n "$K8S_NAMESPACE" describe statefulset/redis || true
             kubectl -n "$K8S_NAMESPACE" describe deployment/"$K8S_DEPLOYMENT" || true
             kubectl -n "$K8S_NAMESPACE" describe pods -l app=fastapi || true
             kubectl -n "$K8S_NAMESPACE" logs -l app=fastapi --all-containers --tail=200 || true
             kubectl -n "$K8S_NAMESPACE" logs -l app=fastapi --all-containers --previous --tail=200 || true
+            kubectl -n "$K8S_NAMESPACE" exec deploy/fastapi -- nslookup postgres || true
+            kubectl -n "$K8S_NAMESPACE" exec deploy/fastapi -- nslookup redis || true
             for pod in $(kubectl -n "$K8S_NAMESPACE" get pods -o name || true); do
               kubectl -n "$K8S_NAMESPACE" describe "$pod" || true
               kubectl -n "$K8S_NAMESPACE" logs "$pod" --all-containers --tail=200 || true

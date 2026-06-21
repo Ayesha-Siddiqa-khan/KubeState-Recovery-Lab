@@ -6,11 +6,11 @@ metadata:
 data:
   APP_NAME: "KubeState Recovery Lab API"
   APP_ENV: "dev"
-  POSTGRES_HOST: "postgres.stateful-app.svc.cluster.local"
+  POSTGRES_HOST: "postgres"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "kubestate"
   POSTGRES_USER: "kubestate"
-  REDIS_HOST: "redis.stateful-app.svc.cluster.local"
+  REDIS_HOST: "redis"
   REDIS_PORT: "6379"
   REDIS_DB: "0"
   APP_STARTUP_SCHEMA_TIMEOUT_SECONDS: "5"

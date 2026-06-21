@@ -79,6 +79,8 @@ FastAPI runs as one replica by default with a no-surge rolling update strategy. 
 
 FastAPI starts the database schema check as a background task with short PostgreSQL connection and pool timeouts, so the HTTP server can bind even if schema initialization is slow. Redis readiness checks also use bounded socket timeouts. The container has a `startupProbe`, so slow startup does not trigger liveness restarts before the HTTP server has a chance to bind. The `/ready` probe has a longer timeout than the combined Postgres and Redis client timeouts, so dependency checks can finish instead of being cut off by Kubernetes.
 
+FastAPI, PostgreSQL, and Redis run in the same namespace, so the app uses the short service DNS names `postgres` and `redis`. That keeps readiness checks independent of cluster-domain search behavior.
+
 PostgreSQL stores data under `/var/lib/postgresql/data/pgdata` inside the mounted PVC. This avoids first-boot failures on ext4-backed EBS volumes that include filesystem metadata at the mount root.
 
 If an older `postgres-0` pod is still using the mount root as its data directory, the workflow deletes that pod after applying manifests so the StatefulSet recreates it with the corrected `PGDATA` environment variable. The PersistentVolumeClaim is kept.
