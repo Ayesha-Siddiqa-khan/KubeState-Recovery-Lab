@@ -64,6 +64,8 @@ Because this project does not use EKS, the workflow does not call EKS-specific c
 
 If no Ready worker node is present, the workflow removes the standard control-plane taints so this lab can still schedule workloads on a single-node cluster. When workers are Ready, the workflow leaves control-plane taints unchanged.
 
+The workflow creates an `ecr-pull-secret` Docker registry secret in the application namespace on every run. This lets the self-managed Kubernetes nodes pull the private FastAPI image from Amazon ECR without requiring a kubelet ECR credential provider.
+
 Normal deployment applies:
 
 - namespaces
@@ -74,6 +76,8 @@ Normal deployment applies:
 - backup CronJob manifests
 
 PostgreSQL stores data under `/var/lib/postgresql/data/pgdata` inside the mounted PVC. This avoids first-boot failures on ext4-backed EBS volumes that include filesystem metadata at the mount root.
+
+If an older `postgres-0` pod is still using the mount root as its data directory, the workflow deletes that pod after applying manifests so the StatefulSet recreates it with the corrected `PGDATA` environment variable. The PersistentVolumeClaim is kept.
 
 Restore manifests are not applied during normal deployments because they are meant for disaster recovery tests.
 

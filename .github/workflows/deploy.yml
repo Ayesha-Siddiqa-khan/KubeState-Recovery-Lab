@@ -268,6 +268,17 @@ jobs:
             --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD_VALUE" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Create ECR pull secret
+        run: |
+          set -euo pipefail
+          ECR_REGISTRY="${IMAGE_URI%%/*}"
+          ECR_PASSWORD="$(aws ecr get-login-password --region "$AWS_REGION")"
+          kubectl -n "$K8S_NAMESPACE" create secret docker-registry ecr-pull-secret \
+            --docker-server="$ECR_REGISTRY" \
+            --docker-username=AWS \
+            --docker-password="$ECR_PASSWORD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Create backup config from Terraform metadata
         run: |
           set -euo pipefail
@@ -316,11 +327,18 @@ jobs:
 
           kubectl apply -k k8s/stateful-app
 
+          echo "Pointing FastAPI deployment at the image built by this workflow..."
+          kubectl -n "$K8S_NAMESPACE" set image "deployment/$K8S_DEPLOYMENT" "$K8S_CONTAINER=$IMAGE_URI"
+
+          POSTGRES_POD_PGDATA="$(kubectl -n "$K8S_NAMESPACE" get pod postgres-0 -o jsonpath='{.spec.containers[?(@.name=="postgres")].env[?(@.name=="PGDATA")].value}' 2>/dev/null || true)"
+          if [ "$POSTGRES_POD_PGDATA" != "/var/lib/postgresql/data/pgdata" ]; then
+            echo "Deleting stale postgres-0 pod so StatefulSet recreates it with PGDATA=/var/lib/postgresql/data/pgdata..."
+            kubectl -n "$K8S_NAMESPACE" delete pod postgres-0 --ignore-not-found --wait=false
+          fi
+
           wait_for_rollout "PostgreSQL StatefulSet" kubectl -n "$K8S_NAMESPACE" rollout status statefulset/postgres --timeout=300s
           wait_for_rollout "Redis StatefulSet" kubectl -n "$K8S_NAMESPACE" rollout status statefulset/redis --timeout=180s
 
-          echo "Rolling out FastAPI deployment..."
-          kubectl -n "$K8S_NAMESPACE" set image "deployment/$K8S_DEPLOYMENT" "$K8S_CONTAINER=$IMAGE_URI"
           wait_for_rollout "FastAPI Deployment" kubectl -n "$K8S_NAMESPACE" rollout status "deployment/$K8S_DEPLOYMENT" --timeout=240s
 
       - name: Show rollout state
